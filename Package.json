@@ -1,0 +1,20 @@
+{
+  "name": "harmony-erc20",
+  "version": "1.0.0",
+  "description": "Harmony sample ERC20 deploy",
+  "main": "truffle.js",
+  "dependencies": {
+    "@harmony-js/core": "^0.1.22",
+    "dotenv": "^8.2.0",
+    "js-sha256": "^0.9.0",
+    "keccak256": "^1.0.0",
+    "openzeppelin-solidity": "^2.2.0",
+    "secp256k1": "^4.0.2",
+    "tslib": "^1.10.0",
+    "web3-eth-accounts": "^1.3.0",
+    "nano-ethereum-signer": "./nano-ethereum-signer"
+  },
+  "devDependencies": {
+    "mocha": "^8.1.3"
+  }
+}
