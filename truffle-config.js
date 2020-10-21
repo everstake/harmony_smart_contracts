@@ -10,11 +10,11 @@ const testnet_private_key = process.env.TESTNET_PRIVATE_KEY
 const testnet_url = process.env.TESTNET_0_URL
 //Mainnet
 const mainnet_mnemonic = process.env.MAINNET_MNEMONIC
-const mainnet_private_key = process.env.MAINNET_PRIVATE_KEY
-const mainnet_url = process.env.MAINNET_0_URL;
+const mainnet_private_key = ""
+const mainnet_url = "https://api.s0.b.hmny.io";
 
 //GAS - Currently using same GAS accross all environments
-gasLimit = process.env.GAS_LIMIT
+gasLimit = '0x34b520'
 gasPrice = process.env.GAS_PRICE
 
 module.exports = {
@@ -49,13 +49,13 @@ module.exports = {
         return truffleProvider;
       },
     },
-    mainnet0: {
-      network_id: '1', // Any network (default: none)
+    mainnet: {
+      network_id: '2', // Any network (default: none)
       provider: () => {
         const truffleProvider = new TruffleProvider(
           mainnet_url,
           { memonic: mainnet_mnemonic },
-          { shardID: 0, chainId: 1 },
+          { shardID: 0, chainId: 2 },
           { gasLimit: gasLimit, gasPrice: gasPrice },
         );
         const newAcc = truffleProvider.addByPrivateKey(mainnet_private_key);

@@ -1,40 +1,45 @@
-pragma solidity ^0.5.17;
+pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
+import "./IERC20.sol";
+import "./SafeMath.sol";
+
+
 contract Bridge {
+    using SafeMath for uint256;
     
-    mapping(address => uint) public tokenBalances;
+    mapping(address => uint256) public tokenBalances;
     mapping(address => bool) public tokens;
     mapping(address => bool) public validators;
     mapping(address => bool) public workers;
-    mapping(address => uint) public dailyLimit;
-    mapping(address => uint) public dailySpend;
-    uint public fee;
+    mapping(address => uint256) public dailyLimit;
+    mapping(address => uint256) public dailySpend;
+    uint256 public fee;
 
-    mapping(address => uint) dailyLimitSetTime;
-    uint signatureThreshold;
-    uint maxvalidatorCount;
-    uint txExpirationTime;
+    mapping(address => uint256) dailyLimitSetTime;
+    uint256 signatureThreshold;
+    uint256 maxvalidatorCount;
+    uint256 txExpirationTime;
     address owner;
-    uint transferNonce;
+    uint256 transferNonce;
     
     event Transfer(
         string receiver,
         address sender,
-        uint amount,
+        uint256 amount,
         address asset,
-        uint transferNonce,
-        uint timestamp
+        uint256 transferNonce,
+        uint256 timestamp
     );
     
     struct SwapMessage {
-        uint chainId;
-        address receiver;
+        uint256 chainId;
+        address payable receiver;
         string sender;
-        uint timestamp;
-        uint amount;
+        uint256 timestamp;
+        uint256 amount;
         address asset;
-        uint transferNonce;
+        uint256 transferNonce;
     }
     
     modifier onlyOwner() {
@@ -53,7 +58,7 @@ contract Bridge {
         _;
     }
     
-    constructor(uint threshold, uint maxPermissibleValidatorCount, uint transferFee, uint coinDailyLimit) public {
+    constructor(uint256 threshold, uint256 maxPermissibleValidatorCount, uint256 transferFee, uint256 coinDailyLimit) public {
         owner = msg.sender;
         signatureThreshold = threshold;
         maxvalidatorCount = maxPermissibleValidatorCount;
@@ -68,7 +73,7 @@ contract Bridge {
         owner = newOwner;
     }
     
-    function setFee(uint newFee) public onlyOwner() {
+    function setFee(uint256 newFee) public onlyOwner() {
         fee = newFee;
     }
     
@@ -88,11 +93,11 @@ contract Bridge {
         workers[removedWorker] = false;
     }
     
-    function setThreshold(uint newSignaturesThreshold) public onlyOwner() {
+    function setThreshold(uint256 newSignaturesThreshold) public onlyOwner() {
         signatureThreshold = newSignaturesThreshold;
     }
     
-    function addToken(address newToken, uint tokenDailyLimit) public onlyOwner() {
+    function addToken(address newToken, uint256 tokenDailyLimit) public onlyOwner() {
         tokens[newToken] = true;
         dailyLimit[newToken] = tokenDailyLimit;
         dailyLimitSetTime[newToken] = block.timestamp;
@@ -104,12 +109,12 @@ contract Bridge {
         dailyLimitSetTime[removedToken] = 0;
     }
     
-    function setDailyLimit(uint newLimit, address assetLimited) public onlyOwner() {
+    function setDailyLimit(uint256 newLimit, address assetLimited) public onlyOwner() {
         require(tokens[assetLimited], "There is no such an asset in the Bridge contract");
         dailyLimit[assetLimited] = newLimit;
     }
     
-    function setTxExpirationTime(uint newTxExpirationTime) public onlyOwner() {
+    function setTxExpirationTime(uint256 newTxExpirationTime) public onlyOwner() {
         txExpirationTime = newTxExpirationTime;
     }
     
@@ -121,9 +126,9 @@ contract Bridge {
         }
     }
 
-    function checkExpirationTime(uint txTime) private view returns (bool) {
+    function checkExpirationTime(uint256 txTime) private view returns (bool) {
         uint currentTime = block.timestamp;
-        if (currentTime - txTime > txExpirationTime) {
+        if (currentTime.sub(txTime) > txExpirationTime) {
             return false;
         } else {
             return true;
@@ -136,7 +141,7 @@ contract Bridge {
     
     function verifySignatures(bytes32 signedMessage, bytes[] memory signatures) private view returns (bool) {
         address[] memory signers = new address[](signatures.length);
-        for (uint i=0; i<signatures.length; i++) {
+        for (uint256 i=0; i<signatures.length; i++) {
             address signerAddress = recover(signedMessage, signatures[i]);
             if (!validators[signerAddress]) return false;
             if (i > 0) {
@@ -148,7 +153,7 @@ contract Bridge {
     }
     
     function checkUnique(address signer, address[] memory allSigners) private pure returns (bool) {
-        for (uint i=0; i < allSigners.length; i++) {
+        for (uint256 i=0; i < allSigners.length; i++) {
             if (signer == allSigners[i]) {
                 return false;
             }
@@ -163,8 +168,8 @@ contract Bridge {
     }
     
     function updateDailyLimit(address asset) private {
-        uint currentTime = block.timestamp;
-        if (currentTime - dailyLimitSetTime[asset] > 86400) {  // we don't check dailyLimitSetTime on zero because if execution came here token already in tokens mapp and dailyLimitSetTime also filled
+        uint256 currentTime = block.timestamp;
+        if (currentTime.sub(dailyLimitSetTime[asset]) > 86400) {  // we don't check dailyLimitSetTime on zero because if execution came here token already in tokens mapp and dailyLimitSetTime also filled
             dailyLimitSetTime[asset] = currentTime;
             dailySpend[asset] = 0;
         }
@@ -177,13 +182,18 @@ contract Bridge {
         
         updateDailyLimit(transferInfo.asset);
         
-        require(transferInfo.amount + dailySpend[transferInfo.asset] <= assetDailyLimit, "Daily limit has already reached for this asset");
+        require(transferInfo.amount.add(dailySpend[transferInfo.asset]) <= assetDailyLimit, "Daily limit has already reached for this asset");
 
-        dailySpend[transferInfo.asset] += transferInfo.amount;
+        dailySpend[transferInfo.asset] = dailySpend[transferInfo.asset].add(transferInfo.amount);
         
-        // TODO: implement token contract call to do transfer
-        // TODO: implement coin transfer
-        // TODO: implement fee count
+        if (transferInfo.asset == address(0)) {
+            uint256 amountToSend = transferInfo.amount.sub(transferInfo.amount.mul(fee).div(100));
+            require(transferInfo.receiver.send(amountToSend), "Error while transfer coins to the receiver");
+        } else {
+            uint256 amountToSend = transferInfo.amount.sub(transferInfo.amount.mul(fee).div(100));
+            IERC20 assetContract = IERC20(transferInfo.asset);
+            require(assetContract.mint(transferInfo.receiver, amountToSend), "Error while mint tokens for the receiver");
+        }
         return true;
     }
     
@@ -210,9 +220,10 @@ contract Bridge {
     }
     
     function transferToken(string memory receiver, uint amount, address asset) public {
-        // TODO: check that asset is valid
-        // TODO: check that sender has enough tokens to transfer
-        // TODO: lock(burn) senders tokens in token smart contract
+        require(this.checkAsset(asset), "Unknown asset is trying to transfer");
+        IERC20 assetContract = IERC20(asset);
+        require(assetContract.balanceOf(msg.sender) >= amount, "Sender doesn't have enough tokens to make transfer");
+        require(assetContract.burn(msg.sender, amount), "Error while burn sender's tokens");
         
         emit Transfer(receiver, msg.sender, amount, asset, transferNonce, block.timestamp);
     }
