@@ -161,6 +161,7 @@ contract Bridge {
         return true;
     }
 
+    // DEV function, remove in future
     function getSigner(SwapMessage memory transferInfo, bytes memory signature) public pure returns (address) {
         bytes32 hashedMessage = hashMessage(transferInfo);
         address signerAddress = recover(hashedMessage, signature);
@@ -224,6 +225,7 @@ contract Bridge {
         IERC20 assetContract = IERC20(asset);
         require(assetContract.balanceOf(msg.sender) >= amount, "Sender doesn't have enough tokens to make transfer");
         require(assetContract.burn(msg.sender, amount), "Error while burn sender's tokens");
+        transferNonce++;
         
         emit Transfer(receiver, msg.sender, amount, asset, transferNonce, block.timestamp);
     }
