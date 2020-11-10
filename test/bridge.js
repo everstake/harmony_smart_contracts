@@ -6,6 +6,7 @@ const assert = require('assert');
 const HarmonyBridge = artifacts.require("Bridge");
 
 const currentTime = (Date.now() / 1000).toFixed();
+const gasLimit = process.env.GAS_LIMIT;
 
 contract("Bridge", async accounts => {
     contract("Change Bridge parameters", async accounts => {
@@ -253,7 +254,7 @@ contract("Bridge", async accounts => {
             }
             throw("Method call should fail because one Validator sends neccessary signature threshold");
         });
-        
+
         it("Send token swap and reached daily limit", async () => {
             let message = getSwapMessage();
             message.asset = "0xa5C00BCfa2b37660Db0A0d88B9dB2cB174d6d8cf";

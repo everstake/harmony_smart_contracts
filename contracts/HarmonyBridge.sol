@@ -1,13 +1,15 @@
-pragma solidity ^0.6.0;
+// SPDX-License-Identifier: MIT
 pragma experimental ABIEncoderV2;
 
-import "./IERC20.sol";
-import "./SafeMath.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+
+import "./EdgewareToken.sol";
 
 
-contract Bridge {
+contract Bridge is Ownable {
     using SafeMath for uint256;
-    
+
     mapping(address => uint256) public tokenBalances;
     mapping(address => bool) public tokens;
     mapping(address => bool) public validators;
@@ -20,9 +22,9 @@ contract Bridge {
     uint256 signatureThreshold;
     uint256 maxvalidatorCount;
     uint256 txExpirationTime;
-    address owner;
+    // address owner;
     uint256 transferNonce;
-    
+
     event Transfer(
         string receiver,
         address sender,
@@ -31,7 +33,7 @@ contract Bridge {
         uint256 transferNonce,
         uint256 timestamp
     );
-    
+
     struct SwapMessage {
         uint256 chainId;
         address payable receiver;
@@ -41,15 +43,15 @@ contract Bridge {
         address asset;
         uint256 transferNonce;
     }
-    
-    modifier onlyOwner() {
-        require(
-            msg.sender == owner,
-            "Only owner can call this function."
-        );
-        _;
-    }
-    
+
+    // modifier onlyOwner() {
+    //     require(
+    //         msg.sender == owner,
+    //         "Only owner can call this function."
+    //     );
+    //     _;
+    // }
+
     modifier onlyWorker() {
         require(
             workers[msg.sender],
@@ -57,9 +59,9 @@ contract Bridge {
         );
         _;
     }
-    
-    constructor(uint256 threshold, uint256 maxPermissibleValidatorCount, uint256 transferFee, uint256 coinDailyLimit) public {
-        owner = msg.sender;
+
+    constructor(uint256 threshold, uint256 maxPermissibleValidatorCount, uint256 transferFee, uint256 coinDailyLimit) Ownable() public {
+        // owner = msg.sender;
         signatureThreshold = threshold;
         maxvalidatorCount = maxPermissibleValidatorCount;
         fee = transferFee;
@@ -68,56 +70,56 @@ contract Bridge {
         dailyLimitSetTime[address(0)] = block.timestamp;
         transferNonce = 0;
     }
-    
-    function transferOwnership(address newOwner) public onlyOwner() {
-        owner = newOwner;
-    }
-    
+
+    // function transferOwnership(address newOwner) public onlyOwner() {
+    //     owner = newOwner;
+    // }
+
     function setFee(uint256 newFee) public onlyOwner() {
         fee = newFee;
     }
-    
+
     function addValidator(address newValidator) public onlyOwner() {
         validators[newValidator] = true;
     }
-    
+
     function removeValidator(address removedValidator) public onlyOwner() {
         validators[removedValidator] = false;
     }
-    
+
     function addWorker(address newWorker) public onlyOwner() {
         workers[newWorker] = true;
     }
-    
+
     function removeWorker(address removedWorker) public onlyOwner() {
         workers[removedWorker] = false;
     }
-    
+
     function setThreshold(uint256 newSignaturesThreshold) public onlyOwner() {
         signatureThreshold = newSignaturesThreshold;
     }
-    
+
     function addToken(address newToken, uint256 tokenDailyLimit) public onlyOwner() {
         tokens[newToken] = true;
         dailyLimit[newToken] = tokenDailyLimit;
         dailyLimitSetTime[newToken] = block.timestamp;
     }
-    
+
     function removeToken(address removedToken) public onlyOwner() {
         tokens[removedToken] = false;
         dailyLimit[removedToken] = 0;
         dailyLimitSetTime[removedToken] = 0;
     }
-    
+
     function setDailyLimit(uint256 newLimit, address assetLimited) public onlyOwner() {
         require(tokens[assetLimited], "There is no such an asset in the Bridge contract");
         dailyLimit[assetLimited] = newLimit;
     }
-    
+
     function setTxExpirationTime(uint256 newTxExpirationTime) public onlyOwner() {
         txExpirationTime = newTxExpirationTime;
     }
-    
+
     function checkAsset(address assetAddress) public view returns (bool) {
         if (assetAddress == address(0) || tokens[assetAddress]) {
             return true;
@@ -134,11 +136,11 @@ contract Bridge {
             return true;
         }
     }
-    
+
     function hashMessage(SwapMessage memory transferInfo) public pure returns (bytes32) {
         return keccak256(abi.encode(transferInfo.chainId, transferInfo.receiver, transferInfo.sender, transferInfo.timestamp, transferInfo.amount, transferInfo.asset, transferInfo.transferNonce));
     }
-    
+
     function verifySignatures(bytes32 signedMessage, bytes[] memory signatures) private view returns (bool) {
         address[] memory signers = new address[](signatures.length);
         for (uint256 i=0; i<signatures.length; i++) {
@@ -151,7 +153,7 @@ contract Bridge {
         }
         return true;
     }
-    
+
     function checkUnique(address signer, address[] memory allSigners) private pure returns (bool) {
         for (uint256 i=0; i < allSigners.length; i++) {
             if (signer == allSigners[i]) {
@@ -167,7 +169,7 @@ contract Bridge {
         address signerAddress = recover(hashedMessage, signature);
         return signerAddress;
     }
-    
+
     function updateDailyLimit(address asset) private {
         uint256 currentTime = block.timestamp;
         if (currentTime.sub(dailyLimitSetTime[asset]) > 86400) {  // we don't check dailyLimitSetTime on zero because if execution came here token already in tokens mapp and dailyLimitSetTime also filled
@@ -175,41 +177,41 @@ contract Bridge {
             dailySpend[asset] = 0;
         }
     }
-    
+
     function makeSwap(SwapMessage memory transferInfo) private returns (bool) {
         uint assetDailyLimit = dailyLimit[transferInfo.asset];
-        
+
         require(assetDailyLimit > 0, "Can't transfer asset without daily limit");
-        
+
         updateDailyLimit(transferInfo.asset);
-        
+
         require(transferInfo.amount.add(dailySpend[transferInfo.asset]) <= assetDailyLimit, "Daily limit has already reached for this asset");
 
         dailySpend[transferInfo.asset] = dailySpend[transferInfo.asset].add(transferInfo.amount);
-        
+
         if (transferInfo.asset == address(0)) {
             uint256 amountToSend = transferInfo.amount.sub(transferInfo.amount.mul(fee).div(100));
             require(transferInfo.receiver.send(amountToSend), "Error while transfer coins to the receiver");
         } else {
             uint256 amountToSend = transferInfo.amount.sub(transferInfo.amount.mul(fee).div(100));
-            IERC20 assetContract = IERC20(transferInfo.asset);
+            EdgewareToken assetContract = EdgewareToken(transferInfo.asset);
             require(assetContract.mint(transferInfo.receiver, amountToSend), "Error while mint tokens for the receiver");
         }
         return true;
     }
-    
+
     function requestSwap(SwapMessage memory transferInfo, bytes[] memory signatures) public onlyWorker() returns (bool) {
         require(checkExpirationTime(transferInfo.timestamp), "Transaction can't be sent because of expiration time");
 
         require(this.checkAsset(transferInfo.asset), "Unknown asset is trying to transfer");
-        
+
         require(transferInfo.receiver == address(transferInfo.receiver),"Invalid receiver address");
-        
+
         require(signatures.length >= signatureThreshold && signatures.length <= maxvalidatorCount, "Wrong count of signatures to make transfer");
-        
+
         bytes32 signedMessage = this.hashMessage(transferInfo);
         require(verifySignatures(signedMessage, signatures), "Signatures verification is failed");
-        
+
         bool res = makeSwap(transferInfo);
         return res;
     }
@@ -219,14 +221,14 @@ contract Bridge {
         transferNonce++;
         emit Transfer(receiver, msg.sender, msg.value, address(0), transferNonce, block.timestamp);
     }
-    
+
     function transferToken(string memory receiver, uint amount, address asset) public {
         require(this.checkAsset(asset), "Unknown asset is trying to transfer");
-        IERC20 assetContract = IERC20(asset);
+        EdgewareToken assetContract = EdgewareToken(asset);
         require(assetContract.balanceOf(msg.sender) >= amount, "Sender doesn't have enough tokens to make transfer");
         require(assetContract.burn(msg.sender, amount), "Error while burn sender's tokens");
         transferNonce++;
-        
+
         emit Transfer(receiver, msg.sender, amount, asset, transferNonce, block.timestamp);
     }
 
