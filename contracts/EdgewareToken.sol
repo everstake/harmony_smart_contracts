@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.6.12;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract EdgewareToken is ERC20 {
+contract EdgewareToken is ERC20Burnable, Ownable {
 
     address private _bridge;
     address private _owner;
@@ -18,12 +19,13 @@ contract EdgewareToken is ERC20 {
 
     constructor(string memory name, string memory symbol)
         public
+        ERC20Burnable()
         ERC20(name, symbol)
     {
         _owner = msg.sender;
     }
 
-    function mint(address receiver, uint256 amount)
+    function mintFor(address receiver, uint256 amount)
         public
         onlyBridgeAndOwner()
         returns (bool)
@@ -37,7 +39,11 @@ contract EdgewareToken is ERC20 {
         onlyBridgeAndOwner()
         returns (bool)
     {
-        _burn(account, amount);
+        burnFrom(account, amount);
         return true;
+    }
+
+    function setBridgeAddress(address bridge) public onlyOwner {
+        _bridge = bridge;
     }
 }

@@ -17,3 +17,12 @@ Please read the guideline for [Smart Contract Development using Truffle](https:/
    ```
    npm run c-mig
    ```
+
+3. For start testing run:
+```
+   npm run sol-cover
+     or
+   npm run gan-cli
+     and  in another terminal
+   npm run tests-in-ganache
+```
