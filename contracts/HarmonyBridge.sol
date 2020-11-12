@@ -20,7 +20,7 @@ contract Bridge is Ownable {
     uint256 signatureThreshold;
     uint256 public maxValidatorsCount;
     uint256 public currentValidatorsCount;
-    uint256 txExpirationTime;
+    uint256 durationBeforeExpirationTime;
     uint256 transferNonce;
 
     event TokensTransfered(
@@ -63,7 +63,7 @@ contract Bridge is Ownable {
         maxValidatorsCount = maxPermissibleValidatorCount;
         currentValidatorsCount = 0;
         fee = transferFee;
-        txExpirationTime = block.timestamp.add(1 days);
+        durationBeforeExpirationTime = 1 days;
         dailyLimit[address(0)] = coinDailyLimit;
         dailyLimitSetTime[address(0)] = block.timestamp;
         transferNonce = 0;
@@ -102,7 +102,7 @@ contract Bridge is Ownable {
         bytes[] memory signatures
     ) public payable onlyWorker() returns (bool) {
         require(
-            checkExpirationTime(transferInfo.timestamp),
+            isTimeExpired(transferInfo.timestamp),
             "Transaction can't be sent because of expiration time"
         );
 
@@ -159,13 +159,17 @@ contract Bridge is Ownable {
         );
     }
 
-    function setFee(uint256 newFee) public onlyOwner() {
-        fee = newFee;
+    function setFee(uint256 percentFee) public onlyOwner() {
+        require(percentFee != 0 && percentFee < 100);
+        fee = percentFee;
     }
 
     // Is count of validators need to check?
     function addValidator(address newValidator) public onlyOwner() {
-        require(currentValidatorsCount != maxValidatorsCount, "The maximum number of validators is now!");
+        require(
+            currentValidatorsCount != maxValidatorsCount,
+            "The maximum number of validators is now!"
+        );
         validators[newValidator] = true;
         currentValidatorsCount++;
         emit ValidatorsCountChanged(
@@ -176,7 +180,10 @@ contract Bridge is Ownable {
     }
 
     function removeValidator(address removedValidator) public onlyOwner() {
-        require(currentValidatorsCount == 0, "There are no validators now!");
+        require(
+            currentValidatorsCount == signatureThreshold,
+            "There are no validators now!"
+        );
         validators[removedValidator] = false;
         currentValidatorsCount--;
         emit ValidatorsCountChanged(
@@ -195,6 +202,11 @@ contract Bridge is Ownable {
     }
 
     function setThreshold(uint256 newSignaturesThreshold) public onlyOwner() {
+        require(
+            newSignaturesThreshold == 0 ||
+                newSignaturesThreshold > maxValidatorsCount,
+            "Ivalid number of Validators"
+        );
         signatureThreshold = newSignaturesThreshold;
     }
 
@@ -217,6 +229,7 @@ contract Bridge is Ownable {
         public
         onlyOwner()
     {
+        require(newLimit != 0, "Invalid limit");
         require(
             tokens[assetLimited],
             "There is no such an asset in the Bridge contract"
@@ -224,11 +237,12 @@ contract Bridge is Ownable {
         dailyLimit[assetLimited] = newLimit;
     }
 
-    function setTxExpirationTime(uint256 newTxExpirationTime)
+    function setNewDurationBeforeExpirationTime(uint256 newDuration)
         public
         onlyOwner()
     {
-        txExpirationTime = newTxExpirationTime;
+        require(newDuration != 0, "Invalid duration value");
+        durationBeforeExpirationTime = newDuration;
     }
 
     function hashMessage(SwapMessage memory transferInfo)
@@ -250,11 +264,11 @@ contract Bridge is Ownable {
             );
     }
 
-    function checkExpirationTime(uint256 txTime) private view returns (bool) {
-        if (txTime > txExpirationTime) {
-            return false;
-        } else {
+    function isTimeExpired(uint256 txTime) private view returns (bool) {
+        if (block.timestamp.sub(txTime) > durationBeforeExpirationTime) {
             return true;
+        } else {
+            return false;
         }
     }
 

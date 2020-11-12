@@ -18,7 +18,7 @@ contract("Bridge", async (accounts) => {
     });
 
     it("Not an admin try to change fee", async () => {
-      const fee = 777;
+      const fee = 1;
       try {
         await bridgeContract.setFee(fee, { from: accounts[1] });
         assert.fail();
@@ -31,7 +31,7 @@ contract("Bridge", async (accounts) => {
     });
 
     it("Admin to change fee successfully", async () => {
-      const expectedFee = 777;
+      const expectedFee = 55;
       await bridgeContract.setFee(expectedFee, { from: accounts[0] });
       const actualFee = await bridgeContract.fee.call();
       assert.strictEqual(
@@ -176,7 +176,7 @@ contract("Bridge", async (accounts) => {
 
     it("Not an admin try to set expiration time", async () => {
       try {
-        await bridgeContract.setTxExpirationTime(5, { from: accounts[1] });
+        await bridgeContract.setNewDurationBeforeExpirationTime(5, { from: accounts[1] });
         assert.fail();
       } catch (error) {
         assert(
@@ -354,28 +354,30 @@ contract("Bridge", async (accounts) => {
         await ctrObj.addValidator(keys[i]);
       }
       await ctrObj.addWorker(accounts[1]);
-      await ctrObj.addToken(edgewareToken.address, 10);
+      await ctrObj.addToken(edgewareToken.address, 10, {from: accounts[0]});
       await edgewareToken.setBridgeAddress(ctrObj.address, {from: accounts[0]});
-      await ctrObj.setTxExpirationTime((Date.now() / 1000).toFixed());
+     //  await ctrObj.setNewDurationBeforeExpirationTime((Date.now() / 1000).toFixed());
 
       let message = getSwapMessage(accounts[2]);
       message.asset = edgewareToken.address;
       message.amount = 1;
       let signatures = signSwapMessage(hashMessage(message), 4);
-      let swapRes = await ctrObj.requestSwap(message, signatures, {
+      const  {receipt} = await ctrObj.requestSwap(message, signatures, {
         from: accounts[1],
       });
+      assert.strictEqual(Number(receipt.rawLogs[0].data) , message.amount);
       await advanceTime(86401);
       message.amount = 1;
       message.timestamp = (Date.now() / 1000).toFixed();
+      await ctrObj.addToken(edgewareToken.address, 10, {from: accounts[0]});
       signatures = signSwapMessage(hashMessage(message), 4);
-      await ctrObj.addToken(edgewareToken.address, 10);
-      swapRes = await ctrObj.requestSwap(message, signatures, {
+      const res = await ctrObj.requestSwap(message, signatures, {
         from: accounts[1],
       });
       let secondSpent = await ctrObj.dailySpend(
         edgewareToken.address
       );
+      assert.strictEqual(Number(res.receipt.rawLogs[0].data) , message.amount);
       assert.strictEqual(secondSpent.toString(), "2");
     });
 
@@ -397,10 +399,9 @@ contract("Bridge", async (accounts) => {
         await ctrObj.requestSwap(message, signatures, {
           from: accounts[1],
         });
-        // assert.fail();
       } catch (error) {
         assert(
-          error.toString().includes("Unknown asset is trying to transfer"),
+          error.toString().includes("Transaction can't be sent because of expiration time"),
           error.toString()
         );
       }
