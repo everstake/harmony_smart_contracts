@@ -14,13 +14,18 @@ const mainnet_private_key = ""
 const mainnet_url = "https://api.s0.b.hmny.io";
 
 //GAS - Currently using same GAS accross all environments
-gasLimit = '0x34b520'
+gasLimit = process.env.GAS_LIMIT;
 gasPrice = process.env.GAS_PRICE
 
 module.exports = {
 
 
   networks: {
+    development: {
+      host: "localhost",
+      port: 8545,
+      network_id: "*" // Match any network id
+    },
     local: {
       network_id: '2', // Any network (default: none)
       provider: () => {
@@ -64,16 +69,18 @@ module.exports = {
       },
     },
   },
+  plugins: ["solidity-coverage"],
 
   // Set default mocha options here, use special reporters etc.
   mocha: {
-    // timeout: 100000
+    reporter: 'eth-gas-reporter',
+    reporterOptions : { excludeContracts: ['Migrations'] }
   },
 
   // Configure your compilers
   compilers: {
     solc: {
-      version: "0.6.0",
+      version: "0.6.12",
     }
   }
 }

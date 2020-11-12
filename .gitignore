@@ -1,3 +1,6 @@
 **/node_modules
 *.yaml
 build
+.env
+package-lock.json
+coverage.json
