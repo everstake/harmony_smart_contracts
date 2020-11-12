@@ -102,7 +102,7 @@ contract Bridge is Ownable {
         bytes[] memory signatures
     ) public payable onlyWorker() returns (bool) {
         require(
-            isTimeExpired(transferInfo.timestamp),
+            isTimeNotExpired(transferInfo.timestamp),
             "Transaction can't be sent because of expiration time"
         );
 
@@ -181,7 +181,7 @@ contract Bridge is Ownable {
 
     function removeValidator(address removedValidator) public onlyOwner() {
         require(
-            currentValidatorsCount == signatureThreshold,
+            currentValidatorsCount -1 >= signatureThreshold,
             "There are no validators now!"
         );
         validators[removedValidator] = false;
@@ -203,8 +203,8 @@ contract Bridge is Ownable {
 
     function setThreshold(uint256 newSignaturesThreshold) public onlyOwner() {
         require(
-            newSignaturesThreshold == 0 ||
-                newSignaturesThreshold > maxValidatorsCount,
+            newSignaturesThreshold != 0 &&
+                newSignaturesThreshold <= maxValidatorsCount,
             "Ivalid number of Validators"
         );
         signatureThreshold = newSignaturesThreshold;
@@ -214,6 +214,7 @@ contract Bridge is Ownable {
         public
         onlyOwner()
     {
+        require(tokenDailyLimit !=0, "Invalid value tokenDailyLimit");
         tokens[newToken] = true;
         dailyLimit[newToken] = tokenDailyLimit;
         dailyLimitSetTime[newToken] = block.timestamp;
@@ -264,11 +265,11 @@ contract Bridge is Ownable {
             );
     }
 
-    function isTimeExpired(uint256 txTime) private view returns (bool) {
-        if (block.timestamp.sub(txTime) > durationBeforeExpirationTime) {
-            return true;
-        } else {
+    function isTimeNotExpired(uint256 txTime) private view returns (bool) {
+        if (block.timestamp.sub(txTime) < durationBeforeExpirationTime) {
             return false;
+        } else {
+            return true;
         }
     }
 
