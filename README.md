@@ -18,7 +18,7 @@ Please read the guideline for [Smart Contract Development using Truffle](https:/
    npm run c-mig
    ```
 
-3. For start testing run:
+3. For start testing run every time to start commands:
 ```
    npm run sol-cover
      or
