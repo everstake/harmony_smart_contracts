@@ -39,7 +39,7 @@ contract EdgewareToken is ERC20Burnable, Ownable {
         onlyBridgeAndOwner()
         returns (bool)
     {
-        burnFrom(account, amount);
+        _burn(account, amount);
         return true;
     }
 

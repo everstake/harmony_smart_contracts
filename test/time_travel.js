@@ -23,31 +23,23 @@ contract("HarmonyBridge", async (accounts) => {
       }
       await ctrObj.setNewDurationBeforeExpirationTime(100000);
       await ctrObj.addWorker(accounts[1]);
-      await ctrObj.addToken(edgewareToken.address, 10, {from: accounts[0]});
+      await ctrObj.addToken(edgewareToken.address, 100000000000, {from: accounts[0]});
       await edgewareToken.setBridgeAddress(ctrObj.address, {from: accounts[0]});
     });
     it("Send token swap and check updating daily limit", async () => {
-      let message = getSwapMessage(accounts[2]);
-      message.asset = edgewareToken.address;
-      message.amount = 1;
-      let signatures = signSwapMessage(hashMessage(message), 4);
-      const  {receipt} = await ctrObj.requestSwap(message, signatures, {
-        from: accounts[1],
-      });
-      assert.strictEqual(Number(receipt.rawLogs[0].data) , message.amount);
+      await edgewareToken.mintFor(accounts[1], 10000, { from: accounts[0] });
+
+      await ctrObj.transferToken('receiver', 100, edgewareToken.address, {from: accounts[1]});
+
       await advanceTime(86401);
-      message.amount = 1;
-      message.timestamp = (Date.now() / 1000).toFixed();
-      await ctrObj.addToken(edgewareToken.address, 10, {from: accounts[0]});
-      signatures = signSwapMessage(hashMessage(message), 4);
-      const res = await ctrObj.requestSwap(message, signatures, {
-        from: accounts[1],
-      });
+
+      await ctrObj.transferToken('receiver', 50, edgewareToken.address, {from: accounts[1]});
+      
       let secondSpent = await ctrObj.dailySpend(
         edgewareToken.address
       );
-      assert.strictEqual(Number(res.receipt.rawLogs[0].data) , message.amount);
-      assert.strictEqual(secondSpent.toString(), "2");
+
+      assert.strictEqual(secondSpent.toString(), "50");
     });
 
     it("Send token swap with expiration time", async () => {

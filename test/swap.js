@@ -146,16 +146,11 @@ contract("HarmonyBridge", async (accounts) => {
     it("Send token swap and reached daily limit", async () => {
       const startBalance = 20;
       await bridgeContract.send(startBalance * 1 ** 18, { from: accounts[2] });
-      let message = getSwapMessage(accounts[2]);
 
-      message.asset = edgewareToken.address;
-      message.amount = 8;
-      await edgewareToken.setBridgeAddress(bridgeContract.address, {from: accounts[0]});
-      let signatures = signSwapMessage(hashMessage(message), 4);
+      await edgewareToken.mintFor(accounts[1], 100000000, { from: accounts[0] });
+
       try {
-      await bridgeContract.requestSwap(message, signatures, {
-        from: accounts[1],
-      });
+      await bridgeContract.transferToken('receiver', 100, edgewareToken.address, {from: accounts[1]});
       assert.fail();
     } catch (error) {
       assert(
