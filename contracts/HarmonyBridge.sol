@@ -187,7 +187,7 @@ contract Bridge is Ownable {
 
     function removeValidator(address removedValidator) public onlyOwner() {
         require(
-            currentValidatorsCount -1 >= signatureThreshold,
+            currentValidatorsCount - 1 >= signatureThreshold,
             "There are no validators now!"
         );
         validators[removedValidator] = false;
@@ -220,7 +220,7 @@ contract Bridge is Ownable {
         public
         onlyOwner()
     {
-        require(tokenDailyLimit !=0, "Invalid value tokenDailyLimit");
+        require(tokenDailyLimit != 0, "Invalid value tokenDailyLimit");
         tokens[newToken] = true;
         dailyLimit[newToken] = tokenDailyLimit;
         dailyLimitSetTime[newToken] = block.timestamp;
@@ -273,9 +273,9 @@ contract Bridge is Ownable {
 
     function isTimeNotExpired(uint256 txTime) private view returns (bool) {
         if (block.timestamp.sub(txTime) < durationBeforeExpirationTime) {
-            return false;
-        } else {
             return true;
+        } else {
+            return false;
         }
     }
 
