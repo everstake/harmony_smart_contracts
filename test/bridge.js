@@ -225,6 +225,7 @@ contract("Bridge", async (accounts) => {
     });
 
     it("Send token swap", async () => {
+      // TODO: in this method call user method to update daily limit
       const startBalance = 5;
       let message = getSwapMessage(accounts[2]);
       message.asset = edgewareToken.address;
@@ -321,6 +322,7 @@ contract("Bridge", async (accounts) => {
     });
 
     it("Send token swap and reached daily limit", async () => {
+      // TODO: in this method call user method to update daily limit
       const startBalance = 20;
       await bridgeContract.send(startBalance * 1 ** 18, { from: accounts[2] });
       let message = getSwapMessage(accounts[2]);
@@ -345,6 +347,7 @@ contract("Bridge", async (accounts) => {
 
   contract("Submit signatures with time travel", async (accounts) => {
     it("Send token swap and check updating daily limit", async () => {
+      // TODO: change this method to work with user mehods and not with requestSwap() method
       let ctrObj = await HarmonyBridge.deployed();
       let edgewareToken = await EdgewareToken.deployed();
       const startBalance = 20;

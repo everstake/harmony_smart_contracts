@@ -77,6 +77,9 @@ contract Bridge is Ownable {
             msg.value > 0,
             "You have to attach some amount of assets to make transfer"
         );
+
+        checkAssetDailyLimit(address(0), msg.value);
+
         transferNonce++;
         emit TokensTransfered(
             receiver,
@@ -143,6 +146,9 @@ contract Bridge is Ownable {
             assetContract.balanceOf(msg.sender) >= amount,
             "Sender doesn't have enough tokens to make transfer"
         );
+
+        checkAssetDailyLimit(asset, amount);
+
         require(
             assetContract.burn(msg.sender, amount),
             "Error while burn sender's tokens"
@@ -312,26 +318,28 @@ contract Bridge is Ownable {
         }
     }
 
-    function makeSwap(SwapMessage memory transferInfo) private returns (bool) {
-        uint256 assetDailyLimit = dailyLimit[transferInfo.asset];
+    function checkAssetDailyLimit(address asset, uint256 amount) private {
+        uint256 assetDailyLimit = dailyLimit[asset];
 
         require(
             assetDailyLimit > 0,
             "Can't transfer asset without daily limit"
         );
 
-        updateDailyLimit(transferInfo.asset);
+        updateDailyLimit(asset);
 
         require(
-            transferInfo.amount.add(dailySpend[transferInfo.asset]) <=
+            amount.add(dailySpend[asset]) <=
                 assetDailyLimit,
             "Daily limit has already reached for this asset"
         );
 
-        dailySpend[transferInfo.asset] = dailySpend[transferInfo.asset].add(
-            transferInfo.amount
+        dailySpend[asset] = dailySpend[asset].add(
+            amount
         );
+    }
 
+    function makeSwap(SwapMessage memory transferInfo) private returns (bool) {
         if (transferInfo.asset == address(0)) {
             uint256 amountToSend = transferInfo.amount.sub(
                 transferInfo.amount.mul(fee).div(100)
