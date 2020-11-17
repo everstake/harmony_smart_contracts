@@ -203,7 +203,7 @@ const validators = {
 
 function getSwapMessage(receiverAccount) {
   let swapMessage = {
-    chainId: 27,
+    chainId: process.env.CHAIN_ID,
     receiver: receiverAccount,
     sender: "0xC1A9A401B40eA5D90227570c71e9472102E16806",
     timestamp: currentTime,

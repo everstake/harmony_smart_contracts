@@ -15,6 +15,7 @@ contract Bridge is Ownable {
     mapping(address => uint256) public dailyLimit;
     mapping(address => uint256) public dailySpend;
     uint256 public fee;
+    uint256 public chainId;
 
     mapping(address => uint256) dailyLimitSetTime;
     uint256 signatureThreshold;
@@ -57,7 +58,8 @@ contract Bridge is Ownable {
         uint256 threshold,
         uint256 maxPermissibleValidatorCount,
         uint256 transferFee,
-        uint256 coinDailyLimit
+        uint256 coinDailyLimit,
+        uint256 chId
     ) public Ownable() {
         signatureThreshold = threshold;
         maxValidatorsCount = maxPermissibleValidatorCount;
@@ -68,6 +70,7 @@ contract Bridge is Ownable {
         dailyLimitSetTime[address(0)] = block.timestamp;
         transferNonce = 0;
         tokens[address(0)] = true;
+        chainId = chId;
     }
 
     receive() external payable {}
@@ -108,6 +111,10 @@ contract Bridge is Ownable {
             isTimeNotExpired(transferInfo.timestamp),
             "Transaction can't be sent because of expiration time"
         );
+
+        require(
+            transferInfo.chainId == chainId,
+            "Swap request's chain ID doesn't match contract's chain ID");
 
         require(
             tokens[transferInfo.asset],
