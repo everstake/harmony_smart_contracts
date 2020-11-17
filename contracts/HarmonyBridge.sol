@@ -11,9 +11,11 @@ contract Bridge is Ownable {
 
     mapping(address => bool) public tokens;
     mapping(address => bool) public validators;
+    address[] public validatorsAddresses;
     mapping(address => bool) public workers;
     mapping(address => uint256) public dailyLimit;
     mapping(address => uint256) public dailySpend;
+    mapping(address => uint256) public validatorRewards;
     uint256 public fee;
     uint256 public chainId;
 
@@ -82,6 +84,8 @@ contract Bridge is Ownable {
         );
 
         checkAssetDailyLimit(address(0), msg.value);
+
+        distributeRewardsForValidators(msg.value);
 
         transferNonce++;
         emit TokensTransfered(
@@ -172,18 +176,31 @@ contract Bridge is Ownable {
         );
     }
 
+    function requestRewards() public payable {
+        require(
+            validatorRewards[msg.sender] > 0,
+            "This address doesn't have any rewards");
+        
+        require(
+                msg.sender.send(validatorRewards[msg.sender]),
+                "Fail while sending rewards for the Validator"
+            );
+        
+        validatorRewards[msg.sender] = 0;
+    }
+
     function setFee(uint256 percentFee) public onlyOwner() {
         require(percentFee != 0 && percentFee < 100);
         fee = percentFee;
     }
 
-    // Is count of validators need to check?
     function addValidator(address newValidator) public onlyOwner() {
         require(
             currentValidatorsCount != maxValidatorsCount,
             "The maximum number of validators is now!"
         );
         validators[newValidator] = true;
+        validatorsAddresses.push(newValidator);
         currentValidatorsCount++;
         emit ValidatorsCountChanged(
             newValidator,
@@ -198,6 +215,7 @@ contract Bridge is Ownable {
             "There are no validators now!"
         );
         validators[removedValidator] = false;
+        removeValidatorByValue(removedValidator);
         currentValidatorsCount--;
         emit ValidatorsCountChanged(
             removedValidator,
@@ -316,6 +334,28 @@ contract Bridge is Ownable {
         return true;
     }
 
+    function distributeRewardsForValidators(uint256 amount) private {
+        uint256 rewardsAmount = amount.mul(fee).div(100);
+
+        for (uint i = 0; i<validatorsAddresses.length; i++){
+            uint256 reward = rewardsAmount.div(currentValidatorsCount);
+            validatorRewards[validatorsAddresses[i]] = validatorRewards[validatorsAddresses[i]].add(reward);
+        }
+    }
+
+    function findValidatorIndex(address value) private returns(uint) {
+        uint i = 0;
+        while (validatorsAddresses[i] != value) {
+            i++;
+        }
+        return i;
+    }
+
+    function removeValidatorByValue(address value) private {
+        uint i = findValidatorIndex(value);
+        delete validatorsAddresses[i];
+    }
+
     function updateDailyLimit(address asset) private {
         uint256 currentTime = block.timestamp;
         if (currentTime.sub(dailyLimitSetTime[asset]) > 1 days) {
@@ -351,6 +391,7 @@ contract Bridge is Ownable {
             uint256 amountToSend = transferInfo.amount.sub(
                 transferInfo.amount.mul(fee).div(100)
             );
+            distributeRewardsForValidators(transferInfo.amount);
             require(
                 transferInfo.receiver.send(amountToSend),
                 "Fail sending Ethers"

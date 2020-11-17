@@ -164,6 +164,13 @@ contract("HarmonyBridge", async (accounts) => {
       );
     }
   });
+  it('Fee after call coin transfer', async () => {
+    await bridgeContract.transferCoin('receiver', { from: accounts[1], value: 1000 });
+    let validatorAddresses = Object.keys(validators);
+    let rewards = await bridgeContract.validatorRewards(validatorAddresses[0]);
+
+    assert.strictEqual(Number(rewards) > 0, true);
+  });
 });
 });
 
