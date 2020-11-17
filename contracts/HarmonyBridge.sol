@@ -18,6 +18,7 @@ contract Bridge is Ownable {
     mapping(address => uint256) public validatorRewards;
     uint256 public fee;
     uint256 public chainId;
+    uint256 public minAmountToTransfer;
 
     mapping(address => uint256) dailyLimitSetTime;
     uint256 signatureThreshold;
@@ -61,7 +62,8 @@ contract Bridge is Ownable {
         uint256 maxPermissibleValidatorCount,
         uint256 transferFee,
         uint256 coinDailyLimit,
-        uint256 chId
+        uint256 chId,
+        uint256 minAmounTransfr
     ) public Ownable() {
         signatureThreshold = threshold;
         maxValidatorsCount = maxPermissibleValidatorCount;
@@ -73,14 +75,15 @@ contract Bridge is Ownable {
         transferNonce = 0;
         tokens[address(0)] = true;
         chainId = chId;
+        minAmountToTransfer = minAmounTransfr;
     }
 
     receive() external payable {}
 
     function transferCoin(string memory receiver) public payable {
         require(
-            msg.value > 0,
-            "You have to attach some amount of assets to make transfer"
+            msg.value >= minAmountToTransfer,
+            "Transfer amount should be bigger or equal than minimum required amount"
         );
 
         checkAssetDailyLimit(address(0), msg.value);
@@ -153,6 +156,12 @@ contract Bridge is Ownable {
     ) public {
         require(tokens[asset], "Unknown asset is trying to transfer");
         EdgewareToken assetContract = EdgewareToken(asset);
+
+        require(
+            amount >= minAmountToTransfer,
+            "Transfer amount should be bigger or equal than minimum required amount"
+        );
+
         require(
             assetContract.balanceOf(msg.sender) >= amount,
             "Sender doesn't have enough tokens to make transfer"
