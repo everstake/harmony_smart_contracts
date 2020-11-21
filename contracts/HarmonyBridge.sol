@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -6,7 +7,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 import "./EdgewareToken.sol";
 
-contract Bridge is Ownable {
+contract HarmonyBridge is Ownable {
     using SafeMath for uint256;
 
     mapping(address => bool) public tokens;
@@ -17,7 +18,7 @@ contract Bridge is Ownable {
     mapping(address => uint256) public dailySpend;
     mapping(address => uint256) public validatorRewards;
     uint256 public fee;
-    uint256 public chainId;
+    uint256 public chId;
     uint256 public minAmountToTransfer;
 
     mapping(address => uint256) dailyLimitSetTime;
@@ -28,8 +29,8 @@ contract Bridge is Ownable {
     uint256 transferNonce;
 
     event TokensTransfered(
-        string indexed receiver,
-        address indexed sender,
+        string receiver,
+        address sender,
         uint256 amount,
         address asset,
         uint256 transferNonce,
@@ -43,7 +44,7 @@ contract Bridge is Ownable {
     );
 
     struct SwapMessage {
-        uint256 chainId;
+        uint256 chId;
         address payable receiver;
         string sender;
         uint256 timestamp;
@@ -62,7 +63,7 @@ contract Bridge is Ownable {
         uint256 maxPermissibleValidatorCount,
         uint256 transferFee,
         uint256 coinDailyLimit,
-        uint256 chId,
+        uint256 idOfChain,
         uint256 minAmounTransfr
     ) public Ownable() {
         signatureThreshold = threshold;
@@ -74,7 +75,7 @@ contract Bridge is Ownable {
         dailyLimitSetTime[address(0)] = block.timestamp;
         transferNonce = 0;
         tokens[address(0)] = true;
-        chainId = chId;
+        chId = idOfChain;
         minAmountToTransfer = minAmounTransfr;
     }
 
@@ -120,7 +121,7 @@ contract Bridge is Ownable {
         );
 
         require(
-            transferInfo.chainId == chainId,
+            transferInfo.chId == chId,
             "Swap request's chain ID doesn't match contract's chain ID");
 
         require(
@@ -294,7 +295,7 @@ contract Bridge is Ownable {
         return
             keccak256(
                 abi.encode(
-                    transferInfo.chainId,
+                    transferInfo.chId,
                     transferInfo.receiver,
                     transferInfo.sender,
                     transferInfo.timestamp,
@@ -352,7 +353,7 @@ contract Bridge is Ownable {
         }
     }
 
-    function findValidatorIndex(address value) private returns(uint) {
+    function findValidatorIndex(address value) private view returns(uint) {
         uint i = 0;
         while (validatorsAddresses[i] != value) {
             i++;
